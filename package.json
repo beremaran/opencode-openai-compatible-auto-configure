@@ -1,0 +1,64 @@
+{
+  "name": "@beremaran/opencode-openai-compatible-auto-configure",
+  "version": "0.1.0",
+  "description": "Register multiple OpenAI-compatible API endpoints and auto-configure their models in opencode by fetching GET {baseURL}/models at startup.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "CHANGELOG.md"
+  ],
+  "homepage": "https://github.com/beremaran/opencode-openai-compatible-auto-configure",
+  "bugs": {
+    "url": "https://github.com/beremaran/opencode-openai-compatible-auto-configure/issues"
+  },
+  "engines": {
+    "node": ">=22.6",
+    "opencode": ">=1.18.11"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test \"test/**/*.test.ts\"",
+    "test:e2e": "bash test/e2e.sh",
+    "check": "npm run typecheck && npm test",
+    "prepublishOnly": "npm run check"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "openai-compatible",
+    "models",
+    "auto-configure",
+    "provider",
+    "llm",
+    "api"
+  ],
+  "author": "Berke Arslan <berke@beremaran.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beremaran/opencode-openai-compatible-auto-configure.git"
+  },
+  "funding": "https://github.com/sponsors/beremaran",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.18.11 <2"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "1.18.11",
+    "@types/node": "^24",
+    "typescript": "^5.6.0"
+  }
+}
