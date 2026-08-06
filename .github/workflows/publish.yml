@@ -172,14 +172,32 @@ jobs:
 
       - name: Publish package
         run: |
-          # A fresh repo has no NPM_TOKEN secret; do not fail the workflow,
-          # just skip npm publishing with a notice. Add the NPM_TOKEN repo
-          # secret or configure trusted publishing to enable it.
-          if [ -n "$NODE_AUTH_TOKEN" ]; then
-            npm publish
-          else
+          # npm publishing is best-effort: a missing NPM_TOKEN secret, or a
+          # token the registry rejects for this package (E401/E403/E404, e.g.
+          # no access to the npm scope), is treated as a graceful skip so the
+          # run stays green and the GitHub Release below is still created.
+          # Any other publish failure still fails the run. Add an authorized
+          # NPM_TOKEN secret or enable trusted publishing to publish (see
+          # RELEASING.md).
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
             echo "::notice::NPM_TOKEN secret is not configured; skipping npm publish. Add an NPM_TOKEN repo secret or enable trusted publishing to publish (see RELEASING.md)."
+            exit 0
           fi
+          set +e
+          OUTPUT="$(npm publish 2>&1)"
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -eq 0 ]; then
+            printf '%s\n' "$OUTPUT"
+            exit 0
+          fi
+          if printf '%s\n' "$OUTPUT" | grep -qE "npm error code E(401|403|404)"; then
+            printf '%s\n' "$OUTPUT"
+            echo "::notice::npm publish was skipped: the configured NPM_TOKEN is not authorized for this package (registry rejected with E401/E403/E404). Add an authorized NPM_TOKEN or enable trusted publishing to publish (see RELEASING.md)."
+            exit 0
+          fi
+          printf '%s\n' "$OUTPUT" >&2
+          exit "$STATUS"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
