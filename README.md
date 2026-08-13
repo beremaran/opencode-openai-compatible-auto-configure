@@ -1,5 +1,7 @@
 # @beremaran/opencode-openai-compatible-auto-configure
 
+> **⚠️ Archived** — This repository is archived. Its functionality (OpenAI-compatible provider auto-configuration) has been consolidated into the [opencode-beanie-plugin](https://github.com/beremaran/opencode-beanie-plugin) (feature: `providers`). Please use that instead.
+
 [![CI](https://github.com/beremaran/opencode-openai-compatible-auto-configure/actions/workflows/ci.yml/badge.svg)](https://github.com/beremaran/opencode-openai-compatible-auto-configure/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@beremaran/opencode-openai-compatible-auto-configure)](https://www.npmjs.com/package/@beremaran/opencode-openai-compatible-auto-configure)
 [![license](https://img.shields.io/npm/l/@beremaran/opencode-openai-compatible-auto-configure)](LICENSE)
