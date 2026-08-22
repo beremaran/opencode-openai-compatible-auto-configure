@@ -187,7 +187,7 @@ jobs:
             printf '%s\n' "$OUTPUT"
             exit 0
           fi
-          if printf '%s\n' "$OUTPUT" | grep -qE "npm error code E(401|403|404)"; then
+          if printf '%s\n' "$OUTPUT" | grep -qE "npm error (code E(401|403|404|NEEDAUTH)|need auth)"; then
             printf '%s\n' "$OUTPUT"
             echo "::notice::npm publish was skipped: npm rejected authentication/authorization with E401/E403/E404. Configure trusted publishing or add an authorized NPM_TOKEN (see RELEASING.md)."
             exit 0
