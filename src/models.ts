@@ -271,7 +271,17 @@ export function buildModelEntries(
     const staticOverride = staticModels[id];
     const discovered = discoveredById.get(id);
     const detected = discovered?.limit ?? detectLimit(discovered?.vendor ?? {});
-    const limit = resolveLimit(detected, source.defaultLimit);
+    const discoveredLimit = resolveLimit(detected, source.defaultLimit);
+    const limit =
+      staticOverride?.limit !== undefined
+        ? resolveLimit(
+            {
+              context: staticOverride.limit.context,
+              output: staticOverride.limit.output,
+            },
+            source.defaultLimit ?? discoveredLimit,
+          )
+        : discoveredLimit;
 
     const entry: Record<string, unknown> = {
       temperature: staticOverride?.temperature ?? true,

@@ -65,6 +65,7 @@ jobs:
     name: Publish
     needs: guard
     runs-on: ubuntu-latest
+    environment: npm-publish
 
     steps:
       - name: Check out repository
@@ -118,6 +119,7 @@ jobs:
               "CHANGELOG.md", "LICENSE", "README.md", "package.json",
               "src/commands.ts", "src/env.ts", "src/index.ts", "src/log.ts",
               "src/models.ts", "src/options.ts", "src/store.ts", "src/types.ts",
+              "src/v1.ts", "src/v2.ts",
             ].sort()
             if (JSON.stringify(actual) !== JSON.stringify(expected)) {
               console.error("packed file mismatch")
@@ -137,15 +139,15 @@ jobs:
           # the most faithful smoke test and avoids Node's type-stripping
           # restriction for .ts files under node_modules
           # (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING): Bun natively runs
-          # the raw .ts main. The import resolves by package name and asserts
-          # both the default and named exports are functions.
+          # the raw .ts entrypoints. The root import is the OpenCode 2 object;
+          # ./server remains the callable OpenCode 1 entrypoint.
           REPO_ROOT="$PWD"
           TARBALL="$(npm pack --silent)"
           CONSUMER_DIR="$(mktemp -d)"
           cd "$CONSUMER_DIR"
           npm init -y
           npm install "$REPO_ROOT/$TARBALL"
-          bun -e "await import('@beremaran/opencode-openai-compatible-auto-configure').then(m => { if (typeof m.default !== 'function' || typeof m.AutoProvidersPlugin !== 'function') process.exit(1) })"
+          bun -e "const v2 = await import('@beremaran/opencode-openai-compatible-auto-configure'); if (v2.default?.id !== '@beremaran/opencode-openai-compatible-auto-configure' || typeof v2.default?.setup !== 'function') process.exit(1); const v1 = await import('@beremaran/opencode-openai-compatible-auto-configure/server'); if (typeof v1.default !== 'function') process.exit(1)"
 
       - name: Extract CHANGELOG section for release body
         run: |
@@ -171,20 +173,14 @@ jobs:
           '
 
       - name: Publish package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          # npm publishing is best-effort: a missing NPM_TOKEN secret, or a
-          # token the registry rejects for this package (E401/E403/E404, e.g.
-          # no access to the npm scope), is treated as a graceful skip so the
-          # run stays green and the GitHub Release below is still created.
-          # Any other publish failure still fails the run. Add an authorized
-          # NPM_TOKEN secret or enable trusted publishing to publish (see
-          # RELEASING.md).
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::notice::NPM_TOKEN secret is not configured; skipping npm publish. Add an NPM_TOKEN repo secret or enable trusted publishing to publish (see RELEASING.md)."
-            exit 0
-          fi
+          # Try npm publish with either NPM_TOKEN or npm trusted publishing.
+          # Before trusted publishing is configured, an auth rejection is a
+          # graceful skip so the GitHub Release and tarball are still created.
           set +e
-          OUTPUT="$(npm publish 2>&1)"
+          OUTPUT="$(npm publish --provenance 2>&1)"
           STATUS=$?
           set -e
           if [ "$STATUS" -eq 0 ]; then
@@ -193,7 +189,7 @@ jobs:
           fi
           if printf '%s\n' "$OUTPUT" | grep -qE "npm error code E(401|403|404)"; then
             printf '%s\n' "$OUTPUT"
-            echo "::notice::npm publish was skipped: the configured NPM_TOKEN is not authorized for this package (registry rejected with E401/E403/E404). Add an authorized NPM_TOKEN or enable trusted publishing to publish (see RELEASING.md)."
+            echo "::notice::npm publish was skipped: npm rejected authentication/authorization with E401/E403/E404. Configure trusted publishing or add an authorized NPM_TOKEN (see RELEASING.md)."
             exit 0
           fi
           printf '%s\n' "$OUTPUT" >&2

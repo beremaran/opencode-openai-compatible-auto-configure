@@ -1,15 +1,19 @@
 {
   "name": "@beremaran/opencode-openai-compatible-auto-configure",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Register multiple OpenAI-compatible API endpoints and auto-configure their models in opencode by fetching GET {baseURL}/models at startup.",
   "type": "module",
   "sideEffects": false,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./src/v1.ts",
+  "types": "./src/v2.ts",
   "exports": {
     ".": {
+      "types": "./src/v2.ts",
+      "default": "./src/v2.ts"
+    },
+    "./server": {
       "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "default": "./src/v1.ts"
     },
     "./package.json": "./package.json"
   },
@@ -23,7 +27,7 @@
   },
   "engines": {
     "node": ">=22.6",
-    "opencode": ">=1.18.11"
+    "opencode": ">=1.18.11 <3"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -54,7 +58,12 @@
     "provenance": true
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": ">=1.18.11 <2"
+    "@opencode-ai/plugin": "^1.18.11 || ^0.0.0-beta"
+  },
+  "peerDependenciesMeta": {
+    "@opencode-ai/plugin": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@opencode-ai/plugin": "1.18.11",

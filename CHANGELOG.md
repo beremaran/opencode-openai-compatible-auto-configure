@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-22
+
+### Added
+
+- OpenCode 2 plugin entrypoint with catalog transforms for discovered
+  OpenAI-compatible providers and models, including V2 default-model support.
+- Dual package entrypoints: the package root serves OpenCode 2, while
+  `./server` and `main` preserve the OpenCode 1 factory.
+- CI and release smoke tests for both OpenCode plugin contracts, plus npm
+  trusted-publishing support in the tag-triggered workflow.
+
+### Fixed
+
+- Static model `limit` overrides now flow into the generated model entries.
+
+### Changed (Breaking)
+
+- OpenCode 2 uses the `plugins` object configuration and the package root;
+  OpenCode 1 users should use the `plugin` configuration with the `./server`
+  entrypoint when their loader does not fall back to `main`.
+
 ## [0.1.0] - 2026-08-06
 
 ### Added
