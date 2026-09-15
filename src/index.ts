@@ -3,6 +3,7 @@ import { addProviderCommand, providersCommand } from "./commands.ts";
 import { createLogger } from "./log.ts";
 import { buildModelEntries, fetchModels } from "./models.ts";
 import { defaultStorePath, normalizeOptions, storePathFromRaw } from "./options.ts";
+import type { NormalizedOptions } from "./options.ts";
 import { loadStore } from "./store.ts";
 import type { Logger, ResolvedProvider } from "./types.ts";
 
@@ -166,26 +167,35 @@ export const AutoProvidersPlugin: Plugin = async (input, rawOptions) => {
 };
 
 /**
- * Structural OpenCode 2 types keep this package loadable with either the V1
- * plugin package or the V2 beta package. The implementation only uses the
- * public Promise API subset needed to transform the catalog.
+ * Structural OpenCode 2 types keep this package loadable with the legacy V1
+ * plugin package and the V2 runtime. The implementation only uses the public
+ * Promise API subset needed to transform provider and model registries.
  */
 type V2Provider = {
+  id?: string;
   name?: string;
+  activation?: "auto" | "enabled" | "disabled";
   package?: string;
   settings?: Record<string, unknown>;
   headers?: Record<string, string>;
 };
 
 type V2Model = {
+  id?: string;
   modelID?: string;
+  providerID?: string;
   name?: string;
-  limit?: { context: number; output: number };
+  limit?: { context: number; input?: number; output: number };
   capabilities?: {
     tools?: boolean;
     input?: string[];
     output?: string[];
   };
+  variants?: unknown[];
+  time?: { released: number };
+  cost?: unknown[];
+  status?: "alpha" | "beta" | "deprecated" | "active";
+  enabled?: boolean;
   settings?: Record<string, unknown>;
   headers?: Record<string, string>;
   body?: Record<string, unknown>;
@@ -193,13 +203,30 @@ type V2Model = {
 
 type V2CatalogDraft = {
   provider: {
-    update: (id: string, update: (provider: V2Provider) => void) => void;
+    update?: (id: string, update: (provider: V2Provider) => void) => void;
+    add?: (input: { info: V2Provider; models: V2Model[] }) => void;
   };
   model: {
-    update: (providerID: string, modelID: string, update: (model: V2Model) => void) => void;
+    update?: (providerID: string, modelID: string, update: (model: V2Model) => void) => void;
     default: {
       set: (providerID: string, modelID: string) => void;
     };
+  };
+};
+
+type V2ProviderEditor = {
+  get?: (providerID: string) => { models?: ReadonlyMap<string, V2Model> } | undefined;
+  add?: (input: { info: V2Provider; models: V2Model[] }) => void;
+  update?: (providerID: string, update: (provider: V2Provider) => void) => void;
+  models?: {
+    set?: (providerID: string, models: V2Model[]) => void;
+    update?: (providerID: string, modelID: string, update: (model: V2Model) => void) => void;
+  };
+};
+
+type V2ModelEditor = {
+  default: {
+    set: (providerID: string, modelID: string) => void;
   };
 };
 
@@ -208,18 +235,47 @@ type V2Command = {
   template?: string;
 };
 
+type V2CommandInput = {
+  sessionID: string;
+  prompt: Record<string, unknown>;
+  delivery: "steer" | "queue";
+};
+
+type V2CommandDefinition = {
+  name: string;
+  description?: string;
+  execute: (input: V2CommandInput) => Promise<void>;
+};
+
+type V2CommandEditor = {
+  add?: (command: V2CommandDefinition) => void;
+  update?: (name: string, update: (command: V2Command) => void) => void;
+};
+
 type V2Context = {
   options?: unknown;
-  catalog: {
+  provider?: {
+    transform: (
+      callback: (draft: V2ProviderEditor) => void | Promise<void>,
+    ) => Promise<unknown> | unknown;
+  };
+  model?: {
+    transform: (
+      callback: (draft: V2ModelEditor) => void | Promise<void>,
+    ) => Promise<unknown> | unknown;
+  };
+  catalog?: {
     transform: (
       callback: (draft: V2CatalogDraft) => void | Promise<void>,
     ) => Promise<unknown> | unknown;
   };
   command?: {
     transform: (
-      callback: (draft: { update: (name: string, update: (command: V2Command) => void) => void }) =>
-        void | Promise<void>,
+      callback: (draft: V2CommandEditor) => void | Promise<void>,
     ) => Promise<unknown> | unknown;
+  };
+  session?: {
+    prompt: (input: Record<string, unknown>) => Promise<unknown> | unknown;
   };
 };
 
@@ -264,6 +320,19 @@ const applyV2Provider = (provider: V2Provider, source: ResolvedProvider): void =
   if (!provider.headers && source.headers) provider.headers = { ...source.headers };
 };
 
+const v2ProviderInfo = (source: ResolvedProvider): V2Provider => {
+  const info: V2Provider = {
+    id: source.id,
+    name: source.name ?? source.id,
+    activation: "enabled",
+    package: v2PackageFor(source),
+    settings: { baseURL: source.baseURL },
+  };
+  if (source.apiKey) info.settings = { ...info.settings, apiKey: source.apiKey };
+  if (source.headers) info.headers = { ...source.headers };
+  return info;
+};
+
 const applyV2Model = (model: V2Model, modelID: string, entry: object): void => {
   const raw = entry as Record<string, unknown>;
   model.modelID = v2ModelID(raw.id, modelID);
@@ -302,10 +371,104 @@ const applyV2Model = (model: V2Model, modelID: string, entry: object): void => {
   }
 };
 
+const v2ModelInfo = (providerID: string, modelID: string, entry: object): V2Model => {
+  const model: V2Model = {
+    id: modelID,
+    modelID,
+    providerID,
+    name: modelID,
+    capabilities: { tools: true, input: ["text"], output: ["text"] },
+    variants: [],
+    time: { released: 0 },
+    cost: [],
+    status: "active",
+    enabled: true,
+    limit: { context: 0, output: 0 },
+  };
+  applyV2Model(model, modelID, entry);
+  return model;
+};
+
 const splitModel = (value: string): { providerID: string; modelID: string } | undefined => {
   const separator = value.indexOf("/");
   if (separator <= 0 || separator === value.length - 1) return undefined;
   return { providerID: value.slice(0, separator), modelID: value.slice(separator + 1) };
+};
+
+const v2ModelsFor = (providerID: string, models: Record<string, object>): V2Model[] =>
+  Object.entries(models).map(([modelID, entry]) => v2ModelInfo(providerID, modelID, entry));
+
+const registerCurrentV2 = async (
+  context: V2Context,
+  configured: Array<{ source: ResolvedProvider; models: Record<string, object> }>,
+  options: NormalizedOptions,
+): Promise<boolean> => {
+  if (!context.provider?.transform) return false;
+
+  await context.provider.transform((providers) => {
+    for (const { source, models } of configured) {
+      const generated = v2ModelsFor(source.id, models);
+      const existing = providers.get?.(source.id);
+      if (existing) {
+        providers.update?.(source.id, (provider) => applyV2Provider(provider, source));
+        const preserved = existing.models
+          ? [...existing.models.values()].filter(
+              (model) => !generated.some((replacement) => replacement.id === model.id),
+            )
+          : [];
+        providers.models?.set?.(source.id, [...preserved, ...generated]);
+        continue;
+      }
+
+      providers.add?.({ info: v2ProviderInfo(source), models: generated });
+    }
+  });
+
+  if (options.model) {
+    const model = splitModel(options.model);
+    if (!model) {
+      v2Logger("warn", `Ignoring invalid V2 default model "${options.model}"`);
+    } else if (context.model?.transform) {
+      await context.model.transform((models) => models.default.set(model.providerID, model.modelID));
+    } else {
+      v2Logger("warn", "OpenCode 2 model transforms are unavailable; ignoring the default model");
+    }
+  }
+  return true;
+};
+
+const registerLegacyV2 = async (
+  context: V2Context,
+  configured: Array<{ source: ResolvedProvider; models: Record<string, object> }>,
+  options: NormalizedOptions,
+): Promise<boolean> => {
+  if (!context.catalog?.transform) return false;
+
+  await context.catalog.transform((catalog) => {
+    for (const { source, models } of configured) {
+      const generated = v2ModelsFor(source.id, models);
+      if (catalog.provider.add) {
+        catalog.provider.add({ info: v2ProviderInfo(source), models: generated });
+        continue;
+      }
+
+      catalog.provider.update?.(source.id, (provider) => {
+        applyV2Provider(provider, source);
+      });
+      for (const [modelID, entry] of Object.entries(models)) {
+        catalog.model.update?.(source.id, modelID, (model) => {
+          applyV2Model(model, modelID, entry);
+        });
+      }
+    }
+
+    if (options.model) {
+      const model = splitModel(options.model);
+      if (model) catalog.model.default.set(model.providerID, model.modelID);
+      else v2Logger("warn", `Ignoring invalid V2 default model "${options.model}"`);
+    }
+  });
+  return true;
 };
 
 const V2_PLUGIN: V2Plugin = {
@@ -345,46 +508,60 @@ const V2_PLUGIN: V2Plugin = {
       configured.push({ source, models });
     }
 
-    await context.catalog.transform((catalog) => {
-      for (const { source, models } of configured) {
-        catalog.provider.update(source.id, (provider) => {
-          applyV2Provider(provider, source);
-        });
-        for (const [modelID, entry] of Object.entries(models)) {
-          catalog.model.update(source.id, modelID, (model) => {
-            applyV2Model(model, modelID, entry);
-          });
-        }
-      }
-
-      if (options.model) {
-        const model = splitModel(options.model);
-        if (model) catalog.model.default.set(model.providerID, model.modelID);
-        else v2Logger("warn", `Ignoring invalid V2 default model "${options.model}"`);
-      }
-    });
+    if (!(await registerCurrentV2(context, configured, options))) {
+      await registerLegacyV2(context, configured, options);
+    }
 
     if (options.smallModel) {
       v2Logger(
         "warn",
-        `smallModel is not available in the OpenCode 2 catalog API; ignoring "${options.smallModel}"`,
+        `smallModel is not available in the OpenCode 2 model API; ignoring "${options.smallModel}"`,
       );
     }
 
-    // V2 has command transforms but no V1 command execution hook. Keep the
-    // commands visible as model-assisted helpers; mutations should use the
-    // V2 config shape or the provider store directly.
+    // V2 has no V1 command execution hook. Keep these as model-assisted
+    // helpers; mutations should use the V2 config shape or provider store.
     if (context.command) {
       await context.command.transform((commands) => {
-        commands.update("add-provider", (command) => {
-          command.description = "Explain how to add an OpenAI-compatible provider for OpenCode 2";
-          command.template =
-            "Explain how to add an OpenAI-compatible provider to the V2 plugins configuration or provider store, then remind the user to restart OpenCode.";
+        const addProviderDescription =
+          "Explain how to add an OpenAI-compatible provider for OpenCode 2";
+        const addProviderTemplate =
+          "Explain how to add an OpenAI-compatible provider to the V2 plugins configuration or provider store, then remind the user to restart OpenCode.";
+        const providersDescription =
+          "Explain the configured OpenAI-compatible providers for OpenCode 2";
+        const providersTemplate =
+          "Inspect the OpenAI-compatible provider configuration and summarize its configured providers and models.";
+
+        if (commands.add && context.session) {
+          const promptCommand = (text: string) => async (input: V2CommandInput): Promise<void> => {
+            const original = typeof input.prompt.text === "string" ? input.prompt.text : "";
+            await context.session?.prompt({
+              ...input.prompt,
+              sessionID: input.sessionID,
+              text: original ? `${text}\n\n${original}` : text,
+              delivery: input.delivery,
+            });
+          };
+          commands.add({
+            name: "add-provider",
+            description: addProviderDescription,
+            execute: promptCommand(addProviderTemplate),
+          });
+          commands.add({
+            name: "providers",
+            description: providersDescription,
+            execute: promptCommand(providersTemplate),
+          });
+          return;
+        }
+
+        commands.update?.("add-provider", (command) => {
+          command.description = addProviderDescription;
+          command.template = addProviderTemplate;
         });
-        commands.update("providers", (command) => {
-          command.description = "Explain the configured OpenAI-compatible providers for OpenCode 2";
-          command.template =
-            "Inspect the OpenAI-compatible provider configuration and summarize its configured providers and models.";
+        commands.update?.("providers", (command) => {
+          command.description = providersDescription;
+          command.template = providersTemplate;
         });
       });
     }

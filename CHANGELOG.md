@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated OpenCode 2 provider/model registration to the current transform API
+  while retaining compatibility with the older catalog shape.
+- Documented GitHub installation, `plugins` configuration, local checkouts, and
+  the OpenCode 2 command behavior.
+
 ## [0.2.0] - 2026-08-22
 
 ### Added
@@ -15,8 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   OpenAI-compatible providers and models, including V2 default-model support.
 - Dual package entrypoints: the package root serves OpenCode 2, while
   `./server` and `main` preserve the OpenCode 1 factory.
-- CI and release smoke tests for both OpenCode plugin contracts, plus npm
-  trusted-publishing support in the tag-triggered workflow.
+- CI and release smoke tests for both OpenCode plugin contracts.
 
 ### Fixed
 
@@ -67,4 +73,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structured logging through opencode's `app.log` endpoint (service name
   `opencode-openai-compatible-auto-configure`); logging can never throw.
 - Release engineering: CI workflow (node 22/24, Bun smoke test, peer-drift),
-  tag-triggered publish workflow, keep-a-changelog `CHANGELOG.md`, and docs.
+  tag-triggered GitHub Release workflow, keep-a-changelog `CHANGELOG.md`, and
+  docs.

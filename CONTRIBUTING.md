@@ -5,36 +5,37 @@ Thanks for contributing to @beremaran/opencode-openai-compatible-auto-configure!
 ## Getting started
 
 1. Fork the repository and clone your fork.
-2. `npm install`
+2. `npm ci`
 3. `npm run check` (typecheck + tests)
 
-The plugin has no runtime dependencies — it runs as a `config` hook plus
-`command.execute.before` handlers, loaded by opencode (Bun runtime). There is
-no build step.
+The package has no runtime dependencies or build step. OpenCode 2 loads the
+package-root TypeScript plugin with its runtime; `./server` remains the legacy
+OpenCode 1 adapter.
 
 ## Manual testing
 
-Load the checkout in `opencode.json` by pointing at `src/index.ts`:
+Load the checkout in `opencode.json` with the OpenCode 2 `plugins` entry:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    [
-      "/abs/path/to/repo/src/index.ts",
-      { "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }] }
-    ]
-  ]
+  "plugins": [{
+    "package": "/abs/path/to/repo",
+    "options": {
+      "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }]
+    }
+  }]
 }
 ```
 
 Run `opencode` from the repo root, then check:
 
 1. The startup log reports `Configured provider "local" with N models`
-   (run `opencode run --print-logs` or check the TUI logs).
+   (run `opencode --print-logs run` or check the TUI logs).
 2. `opencode models` lists the auto-discovered models.
-3. `/add-provider` and `/providers` write to and read from the store file and
-   print its path; restart opencode to apply changes.
+3. OpenCode 2 exposes `/add-provider` and `/providers` as model-assisted
+   helpers; the legacy `./server` adapter writes to and reads from the store
+   file. Restart OpenCode after store/config changes.
 
 The optional `bash test/e2e.sh` script exercises the flow end to end.
 

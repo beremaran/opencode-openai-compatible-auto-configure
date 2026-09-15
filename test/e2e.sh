@@ -50,13 +50,20 @@ fi
 cat > "$TMP/opencode.json" <<EOF
 {
   "\$schema": "https://opencode.ai/config.json",
-  "plugin": [["file://$ROOT/src/index.ts", { "providers": [ { "id": "e2eprov", "name": "E2E Provider", "baseURL": "http://127.0.0.1:$PORT/v1", "fetchModels": true } ] }]]
+  "plugins": [{
+    "package": "$ROOT",
+    "options": {
+      "providers": [
+        { "id": "e2eprov", "name": "E2E Provider", "baseURL": "http://127.0.0.1:$PORT/v1", "fetchModels": true }
+      ]
+    }
+  }]
 }
 EOF
 
 echo "Running opencode models against e2eprov on port $PORT..."
 cd "$TMP"
-OUTPUT="$(OPENCODE_DISABLE_AUTOUPDATE=1 "$BIN" models 2>&1 || true)"
+OUTPUT="$(OPENCODE_DISABLE_AUTOUPDATE=1 "$BIN" models --standalone --print-logs 2>&1 || true)"
 
 if ! printf '%s\n' "$OUTPUT" | grep -q "e2eprov/e2e-ultra"; then
   echo "FAIL: e2eprov/e2e-ultra not found in models output" >&2

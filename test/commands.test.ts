@@ -95,7 +95,7 @@ test("addProviderCommand appends a new id and writes the store", () => {
   const message = addProviderCommand("newprov http://x/v1", storePath, noopLogger);
   assert.match(message, /Added provider "newprov"/);
   assert.match(message, /Store: .*providers\.json/);
-  assert.match(message, /Restart opencode/);
+  assert.match(message, /Restart OpenCode/);
 
   const { providers } = loadStore(storePath, noopLogger);
   assert.equal(providers.length, 1);
@@ -145,7 +145,7 @@ test("providersCommand lists the provider and store path even when the live fetc
   assert.ok(out.includes("myprov"));
   assert.ok(out.includes("http://127.0.0.1:1/v1"));
   assert.ok(out.includes(`Store: ${storePath}`));
-  assert.ok(out.includes("Restart opencode"));
+  assert.ok(out.includes("Restart OpenCode"));
 });
 
 test("providersCommand reports a static model count when fetch is off", async () => {

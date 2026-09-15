@@ -109,7 +109,7 @@ export function addProviderCommand(args: string, storePath: string, logger: Logg
   return [
     `Added provider "${parsed.source.id}"${details}: ${parsed.source.baseURL}`,
     `Store: ${storePath}`,
-    "Restart opencode for changes to take effect.",
+    "Restart OpenCode for changes to take effect.",
   ].join("\n");
 }
 
@@ -147,6 +147,6 @@ export async function providersCommand(storePath: string, logger: Logger): Promi
     ...rows,
     "",
     `Store: ${storePath}`,
-    "Restart opencode for changes to take effect.",
+    "Restart OpenCode for changes to take effect.",
   ].join("\n");
 }

@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest published version of
+Only the latest released version of
 `@beremaran/opencode-openai-compatible-auto-configure` is supported with
 security updates. Older releases are not patched; if you are on an earlier
 release, upgrade to the latest version and confirm the issue is resolved before

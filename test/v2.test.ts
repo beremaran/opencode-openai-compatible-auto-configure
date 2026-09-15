@@ -8,10 +8,8 @@ import v2Plugin from "../src/v2.ts";
 test("OpenCode 2 setup transforms providers, models, commands, and default model", async () => {
   const directory = mkdtempSync(join(tmpdir(), "ocp-v2-"));
   try {
-    let provider: Record<string, unknown> = { settings: {}, headers: {} };
-    let model: Record<string, unknown> = {
-      capabilities: { tools: false, input: ["text"], output: ["text"] },
-    };
+    let provider: Record<string, unknown> = {};
+    let models: Record<string, Record<string, unknown>> = {};
     let defaultModel: string | undefined;
     const commands: Record<string, Record<string, unknown>> = {};
 
@@ -28,40 +26,45 @@ test("OpenCode 2 setup transforms providers, models, commands, and default model
           },
         ],
       },
-      catalog: {
+      provider: {
         transform: async (callback) =>
           callback({
-            provider: {
-              update: (_id, update) => update(provider as never),
+            get: () => undefined,
+            add: (input) => {
+              provider = input.info as Record<string, unknown>;
+              models = Object.fromEntries(
+                input.models.map((model) => [model.id, model as Record<string, unknown>]),
+              );
             },
-            model: {
-              update: (_providerID, _modelID, update) => update(model as never),
-              default: { set: (providerID, modelID) => (defaultModel = `${providerID}/${modelID}`) },
-            },
+          }),
+      },
+      model: {
+        transform: async (callback) =>
+          callback({
+            default: { set: (providerID, modelID) => (defaultModel = `${providerID}/${modelID}`) },
           }),
       },
       command: {
         transform: async (callback) =>
           callback({
-            update: (name, update) => {
-              const command: Record<string, unknown> = {};
-              update(command);
-              commands[name] = command;
+            add: (command) => {
+              commands[command.name] = command as unknown as Record<string, unknown>;
             },
           }),
       },
+      session: { prompt: async () => undefined },
     });
 
     assert.equal(provider.package, "@opencode-ai/ai/providers/openai-compatible");
     assert.deepEqual(provider.settings, { baseURL: "http://127.0.0.1:1/v1" });
-    assert.equal(provider.name, undefined);
-    assert.equal(model.modelID, "m1");
-    assert.equal(model.name, "Mock One");
-    assert.deepEqual(model.limit, { context: 4096, output: 1024 });
-    assert.deepEqual(model.capabilities, { tools: true, input: ["text"], output: ["text"] });
+    assert.equal(provider.name, "mock");
+    assert.equal(models.m1?.modelID, "m1");
+    assert.equal(models.m1?.name, "Mock One");
+    assert.deepEqual(models.m1?.limit, { context: 4096, output: 1024 });
+    assert.deepEqual(models.m1?.capabilities, { tools: true, input: ["text"], output: ["text"] });
     assert.equal(defaultModel, "mock/m1");
-    assert.equal(typeof commands["add-provider"]?.template, "string");
-    assert.equal(typeof commands.providers?.template, "string");
+    assert.equal(typeof commands["add-provider"]?.execute, "function");
+    assert.equal(typeof commands.providers?.execute, "function");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

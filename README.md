@@ -1,15 +1,19 @@
 # @beremaran/opencode-openai-compatible-auto-configure
 
 [![CI](https://github.com/beremaran/opencode-openai-compatible-auto-configure/actions/workflows/ci.yml/badge.svg)](https://github.com/beremaran/opencode-openai-compatible-auto-configure/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@beremaran/opencode-openai-compatible-auto-configure)](https://www.npmjs.com/package/@beremaran/opencode-openai-compatible-auto-configure)
-[![license](https://img.shields.io/npm/l/@beremaran/opencode-openai-compatible-auto-configure)](LICENSE)
+[![license](https://img.shields.io/github/license/beremaran/opencode-openai-compatible-auto-configure)](LICENSE)
 
-An [opencode](https://opencode.ai) plugin that registers multiple OpenAI-compatible API endpoints and **auto-discovers their models**. It supports both OpenCode 1 and OpenCode 2: at startup it fetches each endpoint's `GET {baseURL}/models`, turns the response into provider models, and injects them into the host catalog — so you never hand-write a model list again.
+An [OpenCode 2](https://opencode.ai) plugin that registers multiple
+OpenAI-compatible API endpoints and **auto-discovers their models**. At startup
+it fetches each endpoint's `GET {baseURL}/models`, turns the response into
+provider models, and injects them into the host catalog — so you never
+hand-write a model list again. A legacy OpenCode 1 server adapter remains
+available under `./server`.
 
-- Register any number of providers (baseURL + optional apiKey + headers), either in your config or at runtime.
+- Register any number of providers (baseURL + optional apiKey + headers) in plugin options or the provider store.
 - Models are discovered automatically from each endpoint's `/models` response; `include`/`exclude` globs keep the list manageable.
-- A per-user JSON store file (`~/.config/opencode/openai-compatible-providers.json`) manages providers via the `/add-provider` and `/providers` slash commands.
-- No build step: it is raw TypeScript loaded by opencode's plugin loader (Bun).
+- A per-user JSON store file (`~/.config/opencode/openai-compatible-providers.json`) is read at startup; OpenCode 2 also exposes model-assisted `/add-provider` and `/providers` commands.
+- No build step: OpenCode loads the package's raw TypeScript entrypoint through its plugin runtime.
 
 ## Why
 
@@ -17,16 +21,21 @@ OpenAI-compatible servers (LM Studio, llama.cpp, vLLM, Ollama's OpenAI proxy, Mi
 
 ## Install
 
-Use the configuration shape for your OpenCode version. OpenCode 2 uses `plugins` and the package root; OpenCode 1 uses `plugin` and the legacy server entrypoint.
+OpenCode can install the plugin directly from GitHub:
 
-**OpenCode 2 from npm** (once published):
+```bash
+opencode plugin add github:beremaran/opencode-openai-compatible-auto-configure
+```
+
+For a project-local configuration with provider options, add it to
+`opencode.json`:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "plugins": [
     {
-      "package": "@beremaran/opencode-openai-compatible-auto-configure",
+      "package": "github:beremaran/opencode-openai-compatible-auto-configure",
       "options": {
         "providers": [
           { "id": "local", "baseURL": "http://localhost:1234/v1" }
@@ -37,58 +46,32 @@ Use the configuration shape for your OpenCode version. OpenCode 2 uses `plugins`
 }
 ```
 
-**OpenCode 1 from npm** (once published):
+For a local checkout, replace the GitHub spec with the absolute repository
+path. OpenCode loads the root `index.ts` V2 entrypoint:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    [
-      "@beremaran/opencode-openai-compatible-auto-configure/server",
-      { "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }] }
-    ]
-  ]
+  "plugins": [{
+    "package": "/abs/path/to/opencode-openai-compatible-auto-configure",
+    "options": {
+      "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }]
+    }
+  }]
 }
 ```
 
-**From a GitHub Release tarball** (no package manager required):
+The legacy OpenCode 1 server adapter is available from the `./server` export.
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    "https://github.com/beremaran/opencode-openai-compatible-auto-configure/releases/download/v0.2.0/opencode-openai-compatible-auto-configure-0.2.0.tgz"
-  ]
-}
-```
-
-**From git (OpenCode 1)**:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["github:beremaran/opencode-openai-compatible-auto-configure#v0.2.0"]
-}
-```
-
-**Local paths** for development (point at the checkout):
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["/abs/path/to/repo/src/index.ts"]
-}
-```
-
-Use `/abs/path/to/repo/src/v2.ts` in the OpenCode 2 `plugins` object form.
-Options are passed with the OpenCode 1 tuple form or OpenCode 2 object form.
+This repository is an OpenCode plugin, not a Pi package; it has no Pi manifest,
+extension, or theme entrypoint.
 
 > **Runtime:** this package ships **raw TypeScript** with no build step. It runs
-> under OpenCode's plugin loader, which executes plugins on Bun and strips types
-> at load time. It is **not** importable from plain Node.js — the `engines` field
-> (`>=22.6`) exists for tooling compatibility only.
+> under OpenCode's plugin runtime. It is **not** importable from plain Node.js;
+> the documented root entrypoint targets OpenCode 2.0+, while Node `>=22.6` in
+> `engines` is for the repository's tooling and tests only.
 
-> Config is read at startup. **Restart opencode** after adding the plugin or
+> Config is read at startup. **Restart OpenCode** after adding the plugin or
 > adding a provider.
 
 ## Quick start
@@ -98,20 +81,18 @@ Point the plugin at a local OpenAI-compatible server, e.g. LM Studio on its defa
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    [
-      "https://github.com/beremaran/opencode-openai-compatible-auto-configure/releases/download/v0.2.0/opencode-openai-compatible-auto-configure-0.2.0.tgz",
-      {
-        "providers": [
-          { "id": "local", "baseURL": "http://localhost:1234/v1" }
-        ]
-      }
-    ]
-  ]
+  "plugins": [{
+    "package": "github:beremaran/opencode-openai-compatible-auto-configure",
+    "options": {
+      "providers": [
+        { "id": "local", "baseURL": "http://localhost:1234/v1" }
+      ]
+    }
+  }]
 }
 ```
 
-Restart opencode. At startup the plugin fetches `http://localhost:1234/v1/models`, discovers every model the server advertises, and registers them under the `local` provider. Check them with:
+Restart OpenCode. At startup the plugin fetches `http://localhost:1234/v1/models`, discovers every model the server advertises, and registers them under the `local` provider. Check them with:
 
 ```bash
 opencode models
@@ -129,23 +110,21 @@ or set a default model:
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "local/llama-3.1-8b-instruct",
-  "plugin": [
-    [
-      "@beremaran/opencode-openai-compatible-auto-configure",
-      { "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }] }
-    ]
-  ]
+  "plugins": [{
+    "package": "github:beremaran/opencode-openai-compatible-auto-configure",
+    "options": {
+      "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }]
+    }
+  }]
 }
 ```
 
 ## Configuration
 
-There are two ways to define providers, and both feed the same merge step in
-both host versions:
+There are two ways to define providers, and both feed the same merge step:
 
-1. **In-plugin options** — the `providers` array in the plugin entry (tuple form
-   in OpenCode 1, object form in OpenCode 2).
-2. **The store file** — `~/.config/opencode/openai-compatible-providers.json`, managed by `/add-provider` and edited by hand if you like.
+1. **In-plugin options** — the `providers` array in the OpenCode 2 plugin entry.
+2. **The store file** — `~/.config/opencode/openai-compatible-providers.json`, written by the legacy `./server` `/add-provider` command and editable by hand.
 
 Store entries **override** option entries with the same `id` (the store wins on collision). Everything else — `model`, `smallModel`, `fetchTimeoutMs`, `env` — is a plugin-level option.
 
@@ -154,10 +133,9 @@ Store entries **override** option entries with the same `id` (the store wins on 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    [
-      "@beremaran/opencode-openai-compatible-auto-configure",
-      {
+  "plugins": [{
+      "package": "github:beremaran/opencode-openai-compatible-auto-configure",
+      "options": {
         "model": "local/llama-3.1-8b-instruct",
         "smallModel": "local/llama-3.1-8b-instruct",
         "fetchTimeoutMs": 10000,
@@ -183,8 +161,7 @@ Store entries **override** option entries with the same `id` (the store wins on 
           }
         ]
       }
-    ]
-  ]
+  }]
 }
 ```
 
@@ -228,8 +205,8 @@ logs a warning and skips them rather than crashing.
 | ------ | ---- | ------- | ----------- |
 | `providers` | `ProviderSource[]` | `[]` | Inline provider sources. A store entry with the same `id` overrides the inline one. |
 | `configFile` | `string` | `~/.config/opencode/openai-compatible-providers.json` | Path to the JSON store file. |
-| `model` | `string` | — | `providerID/modelID` to set as opencode's default model (`cfg.model`). |
-| `smallModel` | `string` | — | `providerID/modelID` to set as opencode's small model (`cfg.small_model`). |
+| `model` | `string` | — | `providerID/modelID` to set as OpenCode's default model. |
+| `smallModel` | `string` | — | Legacy OpenCode 1 only (`cfg.small_model`); OpenCode 2 logs a warning and ignores it. |
 | `fetchTimeoutMs` | `number` | `10000` | Timeout in ms for each `/models` fetch at startup. |
 | `env` | `boolean` | `true` | Interpolate `{env:VAR}` and `${VAR}` tokens in `baseURL`, `apiKey`, and header values. When `false`, tokens are left untouched. |
 
@@ -237,12 +214,12 @@ logs a warning and skips them rather than crashing.
 
 | Field | Type | Default | Description |
 | ----- | ---- | ------- | ----------- |
-| `id` | `string` | **required** | Provider id used in opencode; models are referenced as `providerID/modelID`. The id must match `^[A-Za-z0-9._-]+$` (used by `/add-provider`). |
+| `id` | `string` | **required** | Provider id used in OpenCode; models are referenced as `providerID/modelID`. The id must match `^[A-Za-z0-9._-]+$` (used by the legacy `/add-provider`). |
 | `name` | `string` | — | Display name shown in the model picker. |
 | `baseURL` | `string` | **required** | Base URL of the OpenAI-compatible API. |
 | `apiKey` | `string` | — | Sent as `Authorization: Bearer <apiKey>`. Supports `{env:VAR}` / `${VAR}`. A configured apiKey wins over any `Authorization` header you set in `headers`. |
 | `headers` | `Record<string, string>` | — | Extra headers sent with every request to this endpoint. Values support `{env:VAR}` / `${VAR}`. |
-| `npm` | `string` | `"@ai-sdk/openai-compatible"` | OpenCode 1 package used to drive the provider. OpenCode 2 maps this default to `@opencode-ai/ai/providers/openai-compatible`; custom package names are passed through. |
+| `npm` | `string` | `"@ai-sdk/openai-compatible"` | Provider package identifier. OpenCode 2 maps the default to `@opencode-ai/ai/providers/openai-compatible`; custom package names are passed through. |
 | `modelsURL` | `string` | `{baseURL}/models` | Override the model listing URL. |
 | `fetchModels` | `boolean` | `true` | Fetch models from `{baseURL}/models` at startup. When `false`, only `staticModels` are used. |
 | `include` | `string[]` | — | Exact model ids or `*` glob patterns to keep. An empty/absent list keeps everything. |
@@ -253,7 +230,7 @@ logs a warning and skips them rather than crashing.
 
 #### `ModelOverride` (per-model entry fields)
 
-Used by `overrides` and `staticModels`. Only the fields opencode's model-entry
+Used by `overrides` and `staticModels`. Only the fields OpenCode's model-entry
 schema allows are emitted.
 
 | Field | Type | Default | Description |
@@ -270,7 +247,18 @@ schema allows are emitted.
 
 ## Commands
 
-The plugin registers two slash commands (visible as `opencode command` entries in the picker):
+The OpenCode 2 entrypoint registers two model-assisted commands:
+
+- **`/add-provider`** explains how to add a provider to the `plugins` options or
+  provider store.
+- **`/providers`** explains how to inspect the configured providers and models.
+
+These OpenCode 2 commands do not write configuration themselves. Edit the
+`plugins` options or store file, then restart OpenCode when the change must be
+applied deterministically.
+
+The legacy OpenCode 1 `./server` adapter provides the store-backed commands
+that perform the following actions:
 
 - **`/add-provider <id> <baseURL> [apiKey] [--name "Display Name"] [--context N] [--output N] [--no-fetch]`**
   Upserts a provider into the store file (an existing provider with the same id
@@ -289,21 +277,19 @@ The plugin registers two slash commands (visible as `opencode command` entries i
 
 Both commands write to (or read from) the store file and print its path. **Restart
 OpenCode for the changes to take effect** — provider config is applied at
-startup, not at command time. OpenCode 2 exposes these names as model-assisted
-commands because its plugin API has no V1 command execution hook; use the V2
-`plugins` configuration or edit the store directly for deterministic changes.
+startup, not at command time.
 
 ## How it works
 
 1. **Startup** — the plugin reads the store file, merges it with the `providers` option (store wins on id collision), interpolates `{env:VAR}` / `${VAR}` tokens, and resolves defaults (`npm`, `fetchTimeoutMs`, `fetchModels`).
-2. **Host adapter** — OpenCode 1 writes `cfg.provider` and `cfg.command`; OpenCode 2 registers catalog and command transforms.
+2. **Host adapter** — OpenCode 1 writes `cfg.provider` and `cfg.command`; OpenCode 2 registers provider, model, and command transforms.
 3. **Parallel discovery** — every provider's model list is fetched with `GET {baseURL}/models` (or `modelsURL`) in parallel via `Promise.allSettled`. One failing fetch never blocks the others; a per-fetch timeout (`fetchTimeoutMs`, default 10s) aborts stragglers.
 4. **Tolerant parsing** — each response is parsed leniently (see [Model discovery details](#model-discovery-details)); anything unrecognized yields an error log and skips only that provider.
 5. **Capability defaults** — every discovered model entry is emitted with `temperature: true` and `tool_call: true` unless a `staticModels`/`overrides` entry says otherwise.
 6. **Limit detection** — context/output token limits are read from known vendor keys in each model item (plus a nested `limit` object), falling back to the provider's `defaultLimit`. A `limit` is emitted only when both `context` and `output` resolve.
-7. **Model map** — the resulting model map is merged into `cfg.provider[id].models` on OpenCode 1 and into the V2 catalog on OpenCode 2.
+7. **Model map** — the resulting model map is merged into `cfg.provider[id].models` on OpenCode 1 and registered through OpenCode 2's provider/model transforms.
 8. **Provider registration** — OpenCode 1 uses `@ai-sdk/openai-compatible`; OpenCode 2 maps that default to `@opencode-ai/ai/providers/openai-compatible` and writes `settings.baseURL`/`settings.apiKey`.
-9. **Defaults** — `model` sets the default model in both versions. `smallModel` sets `cfg.small_model` on OpenCode 1; OpenCode 2 has no equivalent catalog field.
+9. **Defaults** — `model` sets the default model in both versions. `smallModel` sets `cfg.small_model` on OpenCode 1; OpenCode 2 ignores it because its model API has no equivalent field.
 
 **Merge rule with a pre-existing provider config.** If a provider with the same
 id already exists in your `opencode.json` (or another plugin added one), the
@@ -314,7 +300,7 @@ override it **key-by-key** — so a model the server lists always reflects
 discovery, while a hand-written model the server did not list is preserved.
 
 Any error that escapes the config hook is logged at `error` level and swallowed —
-the plugin can never crash opencode through the config hook.
+the plugin can never crash OpenCode through the config hook.
 
 ## Model discovery details
 
@@ -348,31 +334,28 @@ See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
 
 ## Limitations
 
-- **Config is load-time only.** Providers, models, and the `model`/`smallModel`
-  defaults are applied when opencode starts. After `/add-provider` (or any
-  store/config edit) you must **restart opencode**.
+- **Provider discovery is load-time only.** Providers and models are fetched
+  during plugin setup. Store edits and legacy `/add-provider` changes require a
+  **restart of OpenCode** before the provider catalog changes.
 - **Providers with zero discoverable models are skipped.** If the fetch fails
   *and* no `staticModels` are configured, the provider is not registered (an
   error log names it).
-- **Install via tarball/git URLs is supported but undocumented by opencode** —
-  the tarball URL and `github:` forms above work today but may change with
-  future opencode versions.
-- Supported OpenCode range: `>=1.18.11 <3` (OpenCode 1 and OpenCode 2 beta, per `engines` and `peerDependencies`).
+- Supported OpenCode range: `>=1.18.11 <3` (per `engines` and `peerDependencies`). The root entrypoint targets OpenCode 2.0+; the legacy OpenCode 1 adapter remains available through `./server`.
 
 ## Troubleshooting
 
-- **Provider not showing in `opencode models`** — opencode reads the merged
+- **Provider not showing in `opencode models`** — OpenCode reads the merged
   config at startup, so any change requires a restart. Check the startup logs
   (below) for `Configured provider "<id>" with N models` or an error line
   `Skipping provider "<id>": no models could be determined`.
-- **Fetch failures** — opencode can print logs with `opencode run --print-logs`,
+- **Fetch failures** — OpenCode can print logs with `opencode --print-logs run`,
   or open the TUI logs. Look for the plugin's log lines (service name
   `opencode-openai-compatible-auto-configure`): `Failed to fetch models from
   "<url>"`, `returned HTTP <status>`, or `Could not parse model list`. The
   timeout is `fetchTimeoutMs` (default 10s).
 - **A whole model family is missing** — check your `include`/`exclude` globs.
   `include` acts as a keep-list; an id matching no pattern is dropped.
-- **Port/URL mistakes** — `baseURL` must be reachable from where opencode runs
+- **Port/URL mistakes** — `baseURL` must be reachable from where OpenCode runs
   and must serve the OpenAI-compatible API. A common miss is pointing at a web
   UI origin instead of the `/v1` API origin (e.g. LM Studio listens on
   `http://localhost:1234/v1`). A non-`http(s)://` baseURL is rejected by
@@ -381,10 +364,10 @@ See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
 ## Local development
 
 ```bash
-npm install
+npm ci
 npm run check     # typecheck + tests
 npm test          # node:test, node --experimental-strip-types
-bash test/e2e.sh  # optional end-to-end script (see the repo)
+npm run test:e2e   # optional; needs an OpenCode binary
 ```
 
 To load the checkout directly, point `opencode.json` at it:
@@ -392,30 +375,18 @@ To load the checkout directly, point `opencode.json` at it:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["/abs/path/to/repo/src/index.ts"]
+  "plugins": [{"package": "/abs/path/to/opencode-openai-compatible-auto-configure"}]
 }
 ```
 
-For OpenCode 2, use the package object form and point it at `src/v2.ts`:
+OpenCode loads the package root's V2 `index.ts`; there is no build step because
+the raw `.ts` source is the shipped artifact. `test:e2e` uses
+`$OPENCODE_BIN` when set, otherwise `$HOME/.opencode/bin/opencode`.
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugins": [{ "package": "/abs/path/to/repo/src/v2.ts" }]
-}
-```
+## Releases
 
-There is no build step — the raw `.ts` source is the shipped artifact.
-
-## Publishing / Releasing
-
-Releases are **tag-triggered from CI**, not a local `npm publish`. Pushing a
-`vX.Y.Z` tag runs `.github/workflows/publish.yml`, which verifies the tag,
-checks, packs, smoke-tests both entrypoints in a clean consumer, publishes to
-npm when trusted publishing or `NPM_TOKEN` is configured, and creates a GitHub
-Release whose body is the CHANGELOG section for that version. The GitHub
-Release tarball is what no-npm installs pull from. See
-[RELEASING.md](RELEASING.md) for the exact steps and commands.
+GitHub is the supported installation source. Releases are maintained as Git
+tags and GitHub Releases. See [RELEASING.md](RELEASING.md) for maintainer steps.
 
 ## License
 

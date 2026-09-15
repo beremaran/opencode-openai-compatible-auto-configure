@@ -133,7 +133,7 @@ test("command.execute.before handles add-provider and writes a text part", async
 
     const textPart = output.parts.find((part) => part.type === "text");
     assert.ok(textPart, "expected a text part in output.parts");
-    assert.ok(textPart.text?.includes("Restart opencode"));
+  assert.ok(textPart.text?.includes("Restart OpenCode"));
     assert.ok(textPart.text?.includes("Added provider \"x\""));
 
     assert.ok(

@@ -11,7 +11,7 @@ A clear and concise description of what is broken and what you expected.
 
 **Environment**
 - opencode version: (e.g. `opencode --version`)
-- Plugin version: (e.g. `@beremaran/opencode-openai-compatible-auto-configure@0.1.0`, or local path commit)
+- Plugin version: (e.g. `0.2.0`, a Git revision, or a local checkout)
 - Node/Bun runtime if relevant:
 
 **Config**
@@ -19,18 +19,18 @@ Paste the relevant part of your `opencode.json` (plugin entry and options; redac
 
 ```json
 {
-  "plugin": [
-    [
-      "@beremaran/opencode-openai-compatible-auto-configure",
-      { "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }] }
-    ]
-  ]
+  "plugins": [{
+    "package": "github:beremaran/opencode-openai-compatible-auto-configure",
+    "options": {
+      "providers": [{ "id": "local", "baseURL": "http://localhost:1234/v1" }]
+    }
+  }]
 }
 ```
 
 **Logs**
 Paste the relevant startup/run logs, especially any `opencode-openai-compatible-auto-configure`
-lines (e.g. from `opencode run --print-logs`).
+lines (e.g. from `opencode --print-logs run`).
 
 **To reproduce**
 Steps to reproduce the behavior.
