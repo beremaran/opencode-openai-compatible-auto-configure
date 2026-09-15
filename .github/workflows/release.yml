@@ -114,7 +114,7 @@ jobs:
               "CHANGELOG.md", "LICENSE", "README.md", "index.ts", "package.json",
               "src/commands.ts", "src/env.ts", "src/index.ts", "src/log.ts",
               "src/models.ts", "src/options.ts", "src/store.ts", "src/types.ts",
-              "src/v1.ts", "src/v2.ts",
+              "src/v2.ts",
             ].sort()
             if (JSON.stringify(actual) !== JSON.stringify(expected)) {
               console.error("packed file mismatch")
@@ -135,14 +135,14 @@ jobs:
           # restriction for .ts files under node_modules
           # (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING): Bun natively runs
           # the raw .ts entrypoints. The root import is the OpenCode 2 object;
-          # ./server remains the callable OpenCode 1 entrypoint.
+          # The package root is the OpenCode 2 entrypoint.
           REPO_ROOT="$PWD"
           TARBALL="$(npm pack --silent)"
           CONSUMER_DIR="$(mktemp -d)"
           cd "$CONSUMER_DIR"
           npm init -y
           npm install "$REPO_ROOT/$TARBALL"
-          bun -e "const v2 = await import('@beremaran/opencode-openai-compatible-auto-configure'); if (v2.default?.id !== '@beremaran/opencode-openai-compatible-auto-configure' || typeof v2.default?.setup !== 'function') process.exit(1); const v1 = await import('@beremaran/opencode-openai-compatible-auto-configure/server'); if (typeof v1.default !== 'function') process.exit(1)"
+          bun -e "const plugin = await import('@beremaran/opencode-openai-compatible-auto-configure'); if (plugin.default?.id !== '@beremaran/opencode-openai-compatible-auto-configure' || typeof plugin.default?.setup !== 'function') process.exit(1)"
 
       - name: Extract CHANGELOG section for release body
         run: |

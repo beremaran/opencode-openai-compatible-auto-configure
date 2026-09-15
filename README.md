@@ -7,8 +7,7 @@ An [OpenCode 2](https://opencode.ai) plugin that registers multiple
 OpenAI-compatible API endpoints and **auto-discovers their models**. At startup
 it fetches each endpoint's `GET {baseURL}/models`, turns the response into
 provider models, and injects them into the host catalog — so you never
-hand-write a model list again. A legacy OpenCode 1 server adapter remains
-available under `./server`.
+hand-write a model list again.
 
 - Register any number of providers (baseURL + optional apiKey + headers) in plugin options or the provider store.
 - Models are discovered automatically from each endpoint's `/models` response; `include`/`exclude` globs keep the list manageable.
@@ -60,8 +59,6 @@ path. OpenCode loads the root `index.ts` V2 entrypoint:
   }]
 }
 ```
-
-The legacy OpenCode 1 server adapter is available from the `./server` export.
 
 This repository is an OpenCode plugin, not a Pi package; it has no Pi manifest,
 extension, or theme entrypoint.
@@ -124,7 +121,7 @@ or set a default model:
 There are two ways to define providers, and both feed the same merge step:
 
 1. **In-plugin options** — the `providers` array in the OpenCode 2 plugin entry.
-2. **The store file** — `~/.config/opencode/openai-compatible-providers.json`, written by the legacy `./server` `/add-provider` command and editable by hand.
+2. **The store file** — `~/.config/opencode/openai-compatible-providers.json`, editable by hand.
 
 Store entries **override** option entries with the same `id` (the store wins on collision). Everything else — `model`, `smallModel`, `fetchTimeoutMs`, `env` — is a plugin-level option.
 
@@ -206,7 +203,7 @@ logs a warning and skips them rather than crashing.
 | `providers` | `ProviderSource[]` | `[]` | Inline provider sources. A store entry with the same `id` overrides the inline one. |
 | `configFile` | `string` | `~/.config/opencode/openai-compatible-providers.json` | Path to the JSON store file. |
 | `model` | `string` | — | `providerID/modelID` to set as OpenCode's default model. |
-| `smallModel` | `string` | — | Legacy OpenCode 1 only (`cfg.small_model`); OpenCode 2 logs a warning and ignores it. |
+| `smallModel` | `string` | — | Not used by OpenCode 2; the plugin logs a warning and ignores it. |
 | `fetchTimeoutMs` | `number` | `10000` | Timeout in ms for each `/models` fetch at startup. |
 | `env` | `boolean` | `true` | Interpolate `{env:VAR}` and `${VAR}` tokens in `baseURL`, `apiKey`, and header values. When `false`, tokens are left untouched. |
 
@@ -214,7 +211,7 @@ logs a warning and skips them rather than crashing.
 
 | Field | Type | Default | Description |
 | ----- | ---- | ------- | ----------- |
-| `id` | `string` | **required** | Provider id used in OpenCode; models are referenced as `providerID/modelID`. The id must match `^[A-Za-z0-9._-]+$` (used by the legacy `/add-provider`). |
+| `id` | `string` | **required** | Provider id used in OpenCode; models are referenced as `providerID/modelID`. The id must match `^[A-Za-z0-9._-]+$`. |
 | `name` | `string` | — | Display name shown in the model picker. |
 | `baseURL` | `string` | **required** | Base URL of the OpenAI-compatible API. |
 | `apiKey` | `string` | — | Sent as `Authorization: Bearer <apiKey>`. Supports `{env:VAR}` / `${VAR}`. A configured apiKey wins over any `Authorization` header you set in `headers`. |
@@ -257,39 +254,17 @@ These OpenCode 2 commands do not write configuration themselves. Edit the
 `plugins` options or store file, then restart OpenCode when the change must be
 applied deterministically.
 
-The legacy OpenCode 1 `./server` adapter provides the store-backed commands
-that perform the following actions:
-
-- **`/add-provider <id> <baseURL> [apiKey] [--name "Display Name"] [--context N] [--output N] [--no-fetch]`**
-  Upserts a provider into the store file (an existing provider with the same id
-  is replaced). `<id>` must match `^[A-Za-z0-9._-]+$`; `<baseURL>` must start
-  with `http://` or `https://`. `--context`/`--output` set the `defaultLimit`
-  fallbacks; `--no-fetch` sets `fetchModels` to `false` (static models only).
-
-  ```text
-  /add-provider local http://localhost:1234/v1 --name "LM Studio" --context 8192 --output 4096
-  /add-provider api https://api.openai.com/v1 sk-... --no-fetch
-  ```
-
-- **`/providers`** Lists every configured provider with a live model count —
-  it re-fetches each endpoint's `/models` with a short 3-second timeout. Entries
-  with `--no-fetch`/`fetchModels: false` show their static model count instead.
-
-Both commands write to (or read from) the store file and print its path. **Restart
-OpenCode for the changes to take effect** — provider config is applied at
-startup, not at command time.
-
 ## How it works
 
 1. **Startup** — the plugin reads the store file, merges it with the `providers` option (store wins on id collision), interpolates `{env:VAR}` / `${VAR}` tokens, and resolves defaults (`npm`, `fetchTimeoutMs`, `fetchModels`).
-2. **Host adapter** — OpenCode 1 writes `cfg.provider` and `cfg.command`; OpenCode 2 registers provider, model, and command transforms.
+2. **Host adapter** — OpenCode 2 registers provider, model, and command transforms.
 3. **Parallel discovery** — every provider's model list is fetched with `GET {baseURL}/models` (or `modelsURL`) in parallel via `Promise.allSettled`. One failing fetch never blocks the others; a per-fetch timeout (`fetchTimeoutMs`, default 10s) aborts stragglers.
 4. **Tolerant parsing** — each response is parsed leniently (see [Model discovery details](#model-discovery-details)); anything unrecognized yields an error log and skips only that provider.
 5. **Capability defaults** — every discovered model entry is emitted with `temperature: true` and `tool_call: true` unless a `staticModels`/`overrides` entry says otherwise.
 6. **Limit detection** — context/output token limits are read from known vendor keys in each model item (plus a nested `limit` object), falling back to the provider's `defaultLimit`. A `limit` is emitted only when both `context` and `output` resolve.
-7. **Model map** — the resulting model map is merged into `cfg.provider[id].models` on OpenCode 1 and registered through OpenCode 2's provider/model transforms.
-8. **Provider registration** — OpenCode 1 uses `@ai-sdk/openai-compatible`; OpenCode 2 maps that default to `@opencode-ai/ai/providers/openai-compatible` and writes `settings.baseURL`/`settings.apiKey`.
-9. **Defaults** — `model` sets the default model in both versions. `smallModel` sets `cfg.small_model` on OpenCode 1; OpenCode 2 ignores it because its model API has no equivalent field.
+7. **Model registration** — the resulting models are registered through OpenCode 2's provider/model transforms.
+8. **Provider registration** — the default provider package maps to `@opencode-ai/ai/providers/openai-compatible`; provider settings contain `baseURL` and `apiKey`.
+9. **Defaults** — `model` sets the default model. `smallModel` is ignored because OpenCode 2 has no equivalent field.
 
 **Merge rule with a pre-existing provider config.** If a provider with the same
 id already exists in your `opencode.json` (or another plugin added one), the
@@ -335,12 +310,13 @@ See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
 ## Limitations
 
 - **Provider discovery is load-time only.** Providers and models are fetched
-  during plugin setup. Store edits and legacy `/add-provider` changes require a
-  **restart of OpenCode** before the provider catalog changes.
+  during plugin setup. Store edits require a **restart of OpenCode** before the
+  provider catalog changes.
 - **Providers with zero discoverable models are skipped.** If the fetch fails
   *and* no `staticModels` are configured, the provider is not registered (an
   error log names it).
-- Supported OpenCode range: `>=1.18.11 <3` (per `engines` and `peerDependencies`). The root entrypoint targets OpenCode 2.0+; the legacy OpenCode 1 adapter remains available through `./server`.
+- Supported OpenCode range: `>=2 <3` (per `engines`). The package exposes only
+  the OpenCode 2 root entrypoint.
 
 ## Troubleshooting
 

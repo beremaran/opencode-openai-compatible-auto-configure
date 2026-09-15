@@ -9,8 +9,7 @@ Thanks for contributing to @beremaran/opencode-openai-compatible-auto-configure!
 3. `npm run check` (typecheck + tests)
 
 The package has no runtime dependencies or build step. OpenCode 2 loads the
-package-root TypeScript plugin with its runtime; `./server` remains the legacy
-OpenCode 1 adapter.
+package-root TypeScript plugin with its runtime.
 
 ## Manual testing
 
@@ -34,8 +33,7 @@ Run `opencode` from the repo root, then check:
    (run `opencode --print-logs run` or check the TUI logs).
 2. `opencode models` lists the auto-discovered models.
 3. OpenCode 2 exposes `/add-provider` and `/providers` as model-assisted
-   helpers; the legacy `./server` adapter writes to and reads from the store
-   file. Restart OpenCode after store/config changes.
+   helpers. Restart OpenCode after store/config changes.
 
 The optional `bash test/e2e.sh` script exercises the flow end to end.
 

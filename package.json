@@ -1,6 +1,6 @@
 {
   "name": "@beremaran/opencode-openai-compatible-auto-configure",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "OpenCode 2 plugin that discovers models from OpenAI-compatible providers.",
   "type": "module",
   "sideEffects": false,
@@ -10,10 +10,6 @@
     ".": {
       "types": "./src/v2.ts",
       "default": "./src/v2.ts"
-    },
-    "./server": {
-      "types": "./src/index.ts",
-      "default": "./src/v1.ts"
     },
     "./package.json": "./package.json"
   },
@@ -28,7 +24,7 @@
   },
   "engines": {
     "node": ">=22.6",
-    "opencode": ">=1.18.11 <3"
+    "opencode": ">=2 <3"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

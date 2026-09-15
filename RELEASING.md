@@ -2,9 +2,8 @@
 
 Releases are tag-triggered from CI. There is no local build step; pushing a
 `vX.Y.Z` tag runs `.github/workflows/release.yml`, which verifies the tag, runs
-checks, inspects the packed files, smoke-tests both the OpenCode 2 root
-entrypoint and the OpenCode 1 `./server` entrypoint from a clean consumer
-install, and creates the GitHub Release.
+checks, inspects the packed files, smoke-tests the OpenCode 2 root entrypoint
+from a clean consumer install, and creates the GitHub Release.
 
 ## Steps
 
@@ -33,14 +32,14 @@ install, and creates the GitHub Release.
 
 5. **Watch the release workflow.** It verifies that the tag matches
    `package.json`, that `CHANGELOG.md` contains the version, runs
-   `npm run check`, inspects the packed files, smoke-tests both plugin
-   entrypoints, and creates a GitHub Release whose body is the matching
+   `npm run check`, inspects the packed files, smoke-tests the plugin
+   entrypoint, and creates a GitHub Release whose body is the matching
    CHANGELOG section.
 
 ## Validation
 
 The workflow uses `npm pack --dry-run --json` to verify the file list and then
-smoke-tests the packed entrypoints. This validates the GitHub-installed package;
+smoke-tests the packed entrypoint. This validates the GitHub-installed package;
 the documented user installation path remains the direct GitHub plugin spec in
 `README.md`.
 

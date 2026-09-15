@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-15
+
+### Changed (Breaking)
+
+- Dropped the OpenCode 1 `./server` entrypoint; the package now supports
+  OpenCode 2 only.
+
 ## [0.2.1] - 2026-09-15
 
 ### Fixed
