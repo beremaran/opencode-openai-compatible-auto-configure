@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-15
+
+### Fixed
+
+- Made the OpenCode 2 end-to-end test wait for plugin activation before
+  asserting discovered models.
+
 ### Changed
 
 - Updated OpenCode 2 provider/model registration to the current transform API
   while retaining compatibility with the older catalog shape.
 - Documented GitHub installation, `plugins` configuration, local checkouts, and
   the OpenCode 2 command behavior.
+- Removed the npm registry publication path; GitHub is the supported
+  installation and release source.
 
 ## [0.2.0] - 2026-08-22
 
